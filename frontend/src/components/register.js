@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
+import axios from 'axios'; // Add this import for reverse geocoding
 import {
     Container,
     Paper,
@@ -59,7 +60,6 @@ const Register = () => {
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const { latitude, longitude } = position.coords;
-                    // Reverse geocode to get address
                     try {
                         const response = await axios.get(
                             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
@@ -96,6 +96,7 @@ const Register = () => {
         setLoading(true);
         setError('');
         
+        // Frontend validation
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             setLoading(false);
@@ -116,16 +117,25 @@ const Register = () => {
         }
         
         try {
+            // Remove confirmPassword before sending
             const { confirmPassword, ...registrationData } = formData;
-            await axios.post('http://localhost:5000/api/auth/register', registrationData);
+            
+            // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
+            const response = await api.post('/register', registrationData);
+            
             toast.success('Registration submitted! Please wait for admin approval.');
+            
+            // Clear form
             setFormData({
                 name: '', email: '', phone: '', street: '', barangay: '',
                 city: '', province: '', zip_code: '', password: '', confirmPassword: ''
             });
+            
+            // Redirect to login after successful registration
             setTimeout(() => navigate('/login'), 2000);
+            
         } catch (error) {
-            const errorMessage = error.response?.data?.error || 'Registration failed';
+            const errorMessage = error.response?.data?.error || 'Registration failed. Please try again.';
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {

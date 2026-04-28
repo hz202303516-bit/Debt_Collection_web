@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
     Container,
     Paper,
@@ -8,7 +8,9 @@ import {
     Button,
     Typography,
     Box,
-    Link
+    Link,
+    Alert,
+    CircularProgress
 } from '@mui/material';
 import { toast } from 'react-toastify';
 
@@ -17,27 +19,79 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
         email: '',
         password: ''
     });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
+        
         try {
-            const response = await axios.post('http://localhost:5000/api/auth/login', formData);
+            // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
+            const response = await api.post('/login', formData);
+            
             const { token, user } = response.data;
             
+            // Store user data in localStorage
             localStorage.setItem('token', token);
             localStorage.setItem('userRole', user.role);
             localStorage.setItem('userName', user.name);
             localStorage.setItem('userId', user.user_id);
             
-            setIsAuthenticated(true);
-            setUserRole(user.role);
+            // Check if user is approved
+            if (user.status === 'pending') {
+                toast.warning('Your account is pending approval. Please wait for admin approval.');
+                localStorage.clear();
+                navigate('/login');
+                return;
+            }
+            
+            if (user.status === 'rejected') {
+                toast.error('Your account has been rejected. Please contact admin.');
+                localStorage.clear();
+                navigate('/login');
+                return;
+            }
+            
+            // Update auth state
+            if (setIsAuthenticated) setIsAuthenticated(true);
+            if (setUserRole) setUserRole(user.role);
             
             toast.success('Login successful!');
-            navigate('/dashboard');
+            
+            // Redirect based on role
+            switch(user.role) {
+                case 'admin':
+                    navigate('/admin/dashboard');
+                    break;
+                case 'collector':
+                    navigate('/collector/dashboard');
+                    break;
+                case 'borrower':
+                    navigate('/borrower/dashboard');
+                    break;
+                default:
+                    navigate('/dashboard');
+            }
+            
         } catch (error) {
-            toast.error(error.response?.data?.error || 'Login failed');
+            const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials.';
+            setError(errorMessage);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        if (error) setError('');
     };
 
     return (
@@ -57,6 +111,13 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
                     <Typography component="h2" variant="h6" align="center" color="textSecondary" gutterBottom>
                         Login
                     </Typography>
+                    
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+                            {error}
+                        </Alert>
+                    )}
+                    
                     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
                         <TextField
                             margin="normal"
@@ -67,7 +128,8 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
                             autoComplete="email"
                             autoFocus
                             value={formData.email}
-                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                            onChange={handleChange}
+                            disabled={loading}
                         />
                         <TextField
                             margin="normal"
@@ -78,15 +140,17 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
                             type="password"
                             autoComplete="current-password"
                             value={formData.password}
-                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                            onChange={handleChange}
+                            disabled={loading}
                         />
                         <Button
                             type="submit"
                             fullWidth
                             variant="contained"
                             sx={{ mt: 3, mb: 2 }}
+                            disabled={loading}
                         >
-                            Sign In
+                            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
                         </Button>
                         <Box sx={{ textAlign: 'center' }}>
                             <Link href="/register" variant="body2">
