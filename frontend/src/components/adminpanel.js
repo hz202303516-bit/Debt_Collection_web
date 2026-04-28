@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
     Container,
     Grid,
@@ -94,9 +94,9 @@ const AdminPanel = () => {
         setLoading(true);
         try {
             const [usersRes, assignmentsRes, loansRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/admin/users', config),
-                axios.get('http://localhost:5000/api/admin/assignments', config),
-                axios.get('http://localhost:5000/api/loans', config)
+                api.get('/api/admin/users', config),
+                api.get('/api/admin/assignments', config),
+                api.get('/api/loans', config)
             ]);
 
             const allUsers = usersRes.data || [];
@@ -135,7 +135,7 @@ const AdminPanel = () => {
 
     const handleApproveUser = async (userId) => {
         try {
-            await axios.put(`http://localhost:5000/api/admin/users/${userId}/approve`, {}, config);
+            await api.put(`/api/admin/users/${userId}/approve`, {}, config);
             toast.success('User approved');
             fetchAllData();
         } catch (error) {
@@ -145,7 +145,7 @@ const AdminPanel = () => {
 
     const handleRejectUser = async (userId) => {
         try {
-            await axios.put(`http://localhost:5000/api/admin/users/${userId}/reject`, {}, config);
+            await api.put(`/api/admin/users/${userId}/reject`, {}, config);
             toast.success('User rejected');
             fetchAllData();
         } catch (error) {
@@ -160,7 +160,7 @@ const AdminPanel = () => {
         }
 
         try {
-            await axios.put(`http://localhost:5000/api/admin/users/${selectedUser.user_id}/assign-role`, {
+            await api.put(`/api/admin/users/${selectedUser.user_id}/assign-role`, {
                 role: selectedRole
             }, config);
             
@@ -180,7 +180,7 @@ const AdminPanel = () => {
         }
 
         try {
-            await axios.post('http://localhost:5000/api/admin/assign-collector', {
+            await api.post('/api/admin/assign-collector', {
                 borrower_user_id: selectedUser.user_id,
                 collector_id: selectedCollector
             }, config);
@@ -201,14 +201,14 @@ const AdminPanel = () => {
         }
 
         try {
-            const borrowerResponse = await axios.get(`http://localhost:5000/api/admin/borrower-details/${loanForm.borrower_id}`, config);
+            const borrowerResponse = await api.get(`/api/admin/borrower-details/${loanForm.borrower_id}`, config);
             
             if (!borrowerResponse.data || !borrowerResponse.data.borrower_id) {
                 toast.error('Borrower record not found. Please make sure the user has a borrower profile.');
                 return;
             }
 
-            await axios.post('http://localhost:5000/api/loans', {
+            await api.post('/api/loans', {
                 borrower_id: borrowerResponse.data.borrower_id,
                 loan_amount: parseFloat(loanForm.loan_amount),
                 interest_rate: parseFloat(loanForm.interest_rate),
@@ -244,7 +244,7 @@ const AdminPanel = () => {
         } catch (error) {
             try {
                 const response = await axios.get(
-                    `http://localhost:5000/api/loans/predict-default/${loan.loan_id}`,
+                    `/api/loans/predict-default/${loan.loan_id}`,
                     config
                 );
                 setCurrentPrediction(response.data);

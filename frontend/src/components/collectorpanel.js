@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
     Container, Grid, Paper, Typography, Box, Button, TextField,
     List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent,
@@ -84,7 +84,7 @@ const CollectorPanel = () => {
 
     const saveGPSLocation = async (location) => {
         try {
-            await axios.post('http://localhost:5000/api/gps/collector-location', {
+            await api.post('/api/gps/collector-location', {
                 latitude: location.latitude,
                 longitude: location.longitude,
                 accuracy: gpsAccuracy
@@ -96,7 +96,7 @@ const CollectorPanel = () => {
 
     const fetchAssignedBorrowers = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/borrowers/assigned', config);
+            const response = await api.get('/api/borrowers/assigned', config);
             setAssignedBorrowers(response.data);
         } catch (error) {
             toast.error('Error fetching assigned borrowers');
@@ -143,7 +143,7 @@ const CollectorPanel = () => {
     const handleBorrowerSelect = async (borrower) => {
         setSelectedBorrower(borrower);
         try {
-            const response = await axios.get('http://localhost:5000/api/loans', config);
+            const response = await api.get('/api/loans', config);
             const borrowerLoans = response.data.filter(
                 loan => loan.borrower_id === borrower.borrower_id && loan.status === 'active'
             );
@@ -167,7 +167,7 @@ const CollectorPanel = () => {
                 longitude: gpsLocation.longitude
             };
 
-            const response = await axios.post('http://localhost:5000/api/payments', paymentData, config);
+            const response = await api.post('/api/payments', paymentData, config);
             toast.success(`Payment recorded! Receipt: ${response.data.receipt_number}`);
             setPaymentDialog(false);
             setPaymentAmount('');
@@ -184,7 +184,7 @@ const CollectorPanel = () => {
             return;
         }
         try {
-            await axios.post('http://localhost:5000/api/gps/location', {
+            await api.post('/api/gps/location', {
                 latitude: gpsLocation.latitude,
                 longitude: gpsLocation.longitude,
                 borrower_id: borrowerId
