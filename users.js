@@ -2,7 +2,7 @@
 // backend/routes/users.js
 
 const express = require('express');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { authenticateToken, authorizeRoles } = require('./auth');
 const pool = require('./database');
 
 const router = express.Router();
