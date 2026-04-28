@@ -3,7 +3,7 @@
 
 const express = require('express');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const pool = require('../config/database');
+const pool = require('./database');
 
 const router = express.Router();
 
