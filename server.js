@@ -32,10 +32,10 @@ app.use('/api/admin', adminRoutes);
 app.use(express.static(path.join(__dirname, 'frontend', 'build')));
 
 // Handle React routing - all non-API routes go to React
-app.get('*', (req, res) => {
+/*app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend', 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-});
+}); */
