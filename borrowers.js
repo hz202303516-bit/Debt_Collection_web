@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticateToken, authorizeRoles } = require('./middleware/auth');
+const { authenticateToken, authorizeRoles } = require('./backend/middleware/auth');
 const pool = require('./database');
 
 const router = express.Router();
