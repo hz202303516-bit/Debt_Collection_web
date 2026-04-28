@@ -3,14 +3,14 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const borrowerRoutes = require('./routes/borrowers');
-const loanRoutes = require('./routes/loans');
-const paymentRoutes = require('./routes/payments');
-const gpsRoutes = require('./routes/gps');
-const reportsRoutes = require('./routes/reports');
-const adminRoutes = require('./routes/admin');
+const authRoutes = require('./auth');
+const userRoutes = require('./users');
+const borrowerRoutes = require('./borrowers');
+const loanRoutes = require('./loans');
+const paymentRoutes = require('./payments');
+const gpsRoutes = require('./gps');
+const reportsRoutes = require('./reports');
+const adminRoutes = require('./admin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
