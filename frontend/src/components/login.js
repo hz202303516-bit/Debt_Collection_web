@@ -29,13 +29,11 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
         
         try {
             // 🔥 UPDATED: Use relative URL since both frontend and backend are on Render
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
+         const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/auth/login`,
+          formData
+        );
+
             
             const data = await response.json();
             
