@@ -117,43 +117,55 @@ const Register = () => {
             return;
         }
         
-         try {
-        const { confirmPassword, ...registrationData } = formData;
+        try {
+            const { confirmPassword, street, barangay, city, province, zip_code, ...basicData } = formData;
+            
+            // Combine address fields into a single address string
+            const fullAddress = [street, barangay, city, province, zip_code]
+                .filter(part => part && part.trim())
+                .join(', ');
+            
+            // Format data to match what backend expects
+            const registrationData = {
+                ...basicData,
+                phone: basicData.phone || null,
+                address: fullAddress || null
+            };
         
-        // 🔥 UPDATED: Use relative URL
-        const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(registrationData)
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Registration failed');
+            // 🔥 UPDATED: Use relative URL
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData)
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Registration failed');
+            }
+            
+            toast.success('Registration submitted! Please wait for admin approval.');
+            
+            // Clear form
+            setFormData({
+                name: '', email: '', phone: '', street: '', barangay: '',
+                city: '', province: '', zip_code: '', password: '', confirmPassword: ''
+            });
+            
+            // Redirect to login
+            setTimeout(() => navigate('/login'), 2000);
+            
+        } catch (error) {
+            const errorMessage = error.message || 'Registration failed';
+            setError(errorMessage);
+            toast.error(errorMessage);
+        } finally {
+            setLoading(false);
         }
-        
-        toast.success('Registration submitted! Please wait for admin approval.');
-        
-        // Clear form
-        setFormData({
-            name: '', email: '', phone: '', street: '', barangay: '',
-            city: '', province: '', zip_code: '', password: '', confirmPassword: ''
-        });
-        
-        // Redirect to login
-        setTimeout(() => navigate('/login'), 2000);
-        
-    } catch (error) {
-        const errorMessage = error.message || 'Registration failed';
-        setError(errorMessage);
-        toast.error(errorMessage);
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;

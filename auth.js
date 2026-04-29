@@ -21,7 +21,15 @@ router.post('/register', [
             });
         }
 
-        const { name, email, password, phone, address } = req.body;
+        const { name, email, password, phone, address, street, barangay, city, province, zip_code } = req.body;
+
+        // Combine address fields if individual fields are sent
+        let fullAddress = address;
+        if (!fullAddress && (street || barangay || city || province || zip_code)) {
+            fullAddress = [street, barangay, city, province, zip_code]
+                .filter(part => part && part.trim())
+                .join(', ');
+        }
 
         // Check if user already exists
         const userExists = await pool.query(
@@ -44,7 +52,7 @@ router.post('/register', [
             `INSERT INTO users (name, email, password, role, status, phone, address) 
              VALUES ($1, $2, $3, 'pending_user', 'pending', $4, $5) 
              RETURNING user_id, name, email, role, status, phone, address, created_at`,
-            [name, email.toLowerCase(), hashedPassword, phone || null, address || null]
+            [name, email.toLowerCase(), hashedPassword, phone || null, fullAddress || null]
         );
 
         res.status(201).json({
@@ -66,14 +74,18 @@ router.post('/register', [
             });
         }
         
+        const errorMessage = error.message || 'Unknown error';
         res.status(500).json({ 
-            error: 'Registration failed due to server error.' 
+            error: 'Registration failed due to server error',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         });
     }
 });
 
 // Login - Checks role and status
 router.post('/login', async (req, res) => {
+    console.log('Login attempt:', req.body.email);
+    
     try {
         const { email, password } = req.body;
 
@@ -86,6 +98,7 @@ router.post('/login', async (req, res) => {
             'SELECT * FROM users WHERE email = $1',
             [email.toLowerCase()]
         );
+        console.log('User found:', result.rows.length > 0);
 
         if (result.rows.length === 0) {
             return res.status(401).json({ error: 'Invalid email or password' });
@@ -151,7 +164,12 @@ router.post('/login', async (req, res) => {
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed due to server error' });
+        // Return more detailed error for debugging
+        const errorMessage = error.message || 'Unknown error';
+        res.status(500).json({ 
+            error: 'Login failed due to server error',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        });
     }
 });
 
