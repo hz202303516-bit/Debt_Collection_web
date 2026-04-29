@@ -1,14 +1,37 @@
 const { Pool } = require('pg');
-const isProduction = process.env.DATABASE_URL ? true : false;
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Use the connection string from Render
-  max: 20, // Limit this service to 20 connections [citation:7]
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  // SSL is required for external connections, but Render's internal network handles this automatically
-  // ssl: isProduction ? { rejectUnauthorized: false } : false
-});
+// Check if we have a DATABASE_URL (Render) or individual parameters (local)
+const pool = new Pool(
+    process.env.DATABASE_URL 
+        ? {
+            // Render/Production configuration
+            connectionString: process.env.DATABASE_URL,
+            ssl: {
+                rejectUnauthorized: false // Required for Render PostgreSQL
+            }
+        }
+        : {
+            // Local development configuration
+            user: process.env.DB_USER || 'postgres',
+            host: process.env.DB_HOST || 'localhost',
+            database: process.env.DB_NAME || 'debt_collection',
+            password: process.env.DB_PASSWORD || '12345',
+            port: process.env.DB_PORT || 5432,
+        }
+);
+
+// Test connection on startup
+pool.query('SELECT NOW()')
+    .then(result => {
+        console.log('✅ Database connected successfully at:', result.rows[0].now);
+    })
+    .catch(err => {
+        console.error('❌ Database connection failed:', err.message);
+        console.error('Connection details:', {
+            usingDatabseUrl: !!process.env.DATABASE_URL,
+            host: process.env.DATABASE_URL ? 'Render' : (process.env.DB_HOST || 'localhost')
+        });
+    });
 
 module.exports = pool;

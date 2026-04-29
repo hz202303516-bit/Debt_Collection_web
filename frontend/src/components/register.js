@@ -91,17 +91,18 @@ const Register = () => {
         }
     };
 
-    const handleSubmit = async (e) => {
+        const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         
-        // Frontend validation
+        // Validation checks (keep your existing ones)
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             setLoading(false);
             return;
         }
+    
 
         if (formData.password.length < 6) {
             setError('Password must be at least 6 characters');
@@ -116,50 +117,43 @@ const Register = () => {
             return;
         }
         
-        try {
-            // Remove confirmPassword before sending
-            const { confirmPassword, ...formFields } = formData;
-            
-            // Combine address fields into a single address string (what backend expects)
-            const fullAddress = [
-                formData.street,
-                formData.barangay,
-                formData.city,
-                formData.province,
-                formData.zip_code
-            ].filter(part => part && part.trim()).join(', ');
-            
-            // Format data to match what backend expects
-            const registrationData = {
-                name: formFields.name,
-                email: formFields.email,
-                password: formFields.password,
-                phone: formFields.phone || null,
-                address: fullAddress || null
-            };
-            
-            // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
-            const response = await api.post('/api/auth/register', registrationData);
-            
-            toast.success('Registration submitted! Please wait for admin approval.');
-            
-            // Clear form
-            setFormData({
-                name: '', email: '', phone: '', street: '', barangay: '',
-                city: '', province: '', zip_code: '', password: '', confirmPassword: ''
-            });
-            
-            // Redirect to login after successful registration
-            setTimeout(() => navigate('/login'), 2000);
-            
-        } catch (error) {
-            const errorMessage = error.response?.data?.error || 'Registration failed. Please try again.';
-            setError(errorMessage);
-            toast.error(errorMessage);
-        } finally {
-            setLoading(false);
+         try {
+        const { confirmPassword, ...registrationData } = formData;
+        
+        // 🔥 UPDATED: Use relative URL
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(registrationData)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Registration failed');
         }
-    };
+        
+        toast.success('Registration submitted! Please wait for admin approval.');
+        
+        // Clear form
+        setFormData({
+            name: '', email: '', phone: '', street: '', barangay: '',
+            city: '', province: '', zip_code: '', password: '', confirmPassword: ''
+        });
+        
+        // Redirect to login
+        setTimeout(() => navigate('/login'), 2000);
+        
+    } catch (error) {
+        const errorMessage = error.message || 'Registration failed';
+        setError(errorMessage);
+        toast.error(errorMessage);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleChange = (e) => {
         const { name, value } = e.target;

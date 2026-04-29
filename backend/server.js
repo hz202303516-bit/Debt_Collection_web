@@ -3,15 +3,15 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-// Import routes - adjust paths based on where this file is
-const authRoutes = require('./backend/routes/auth');
-const userRoutes = require('./backend/routes/users');
-const borrowerRoutes = require('./backend/routes/borrowers');
-const loanRoutes = require('./backend/routes/loans');
-const paymentRoutes = require('./backend/routes/payments');
-const gpsRoutes = require('./backend/routes/gps');
-const reportsRoutes = require('./backend/routes/reports');
-const adminRoutes = require('./backend/routes/admin');
+// Import routes
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const borrowerRoutes = require('./routes/borrowers');
+const loanRoutes = require('./routes/loans');
+const paymentRoutes = require('./routes/payments');
+const gpsRoutes = require('./routes/gps');
+const reportsRoutes = require('./routes/reports');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 10000;

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
 import {
     Container,
     Paper,
@@ -29,55 +28,50 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
         setError('');
         
         try {
-            // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
-            const response = await api.post('/api/auth/login', formData);
+            // 🔥 UPDATED: Use relative URL since both frontend and backend are on Render
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
             
-            const { token, user } = response.data;
+            const data = await response.json();
             
-            // Store user data in localStorage
-            localStorage.setItem('token', token);
-            localStorage.setItem('userRole', user.role);
-            localStorage.setItem('userName', user.name);
-            localStorage.setItem('userId', user.user_id);
-            
-            // Check if user is approved
-            if (user.status === 'pending') {
-                toast.warning('Your account is pending approval. Please wait for admin approval.');
-                localStorage.clear();
-                navigate('/login');
-                return;
+            if (!response.ok) {
+                throw new Error(data.error || 'Login failed');
             }
             
-            if (user.status === 'rejected') {
-                toast.error('Your account has been rejected. Please contact admin.');
-                localStorage.clear();
-                navigate('/login');
-                return;
-            }
+            // Store token and user data
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('userRole', data.user.role);
+            localStorage.setItem('userName', data.user.name);
+            localStorage.setItem('userId', data.user.user_id);
             
             // Update auth state
             if (setIsAuthenticated) setIsAuthenticated(true);
-            if (setUserRole) setUserRole(user.role);
+            if (setUserRole) setUserRole(data.user.role);
             
             toast.success('Login successful!');
             
             // Redirect based on role
-            switch(user.role) {
+            switch(data.user.role) {
                 case 'admin':
-                    navigate('/admin/dashboard');
+                    navigate('/admin');
                     break;
                 case 'collector':
-                    navigate('/collector/dashboard');
+                    navigate('/collector');
                     break;
                 case 'borrower':
-                    navigate('/borrower/dashboard');
+                    navigate('/borrower');
                     break;
                 default:
                     navigate('/dashboard');
             }
             
         } catch (error) {
-            const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials.';
+            const errorMessage = error.message || 'Login failed. Please try again.';
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {
