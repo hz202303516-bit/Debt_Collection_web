@@ -19,6 +19,15 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoints
+app.get('/api/ping', (req, res) => {
+    res.json({ status: 'ok', message: 'Server is running' });
+});
+
+app.get('/api/health', async (req, res) => {
+    res.json({ status: 'ok', message: 'Backend server is running' });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
