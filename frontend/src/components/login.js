@@ -30,7 +30,7 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
         
         try {
             // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
-            const response = await api.post('/login', formData);
+            const response = await api.post('/api/auth/login', formData);
             
             const { token, user } = response.data;
             

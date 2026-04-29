@@ -118,10 +118,28 @@ const Register = () => {
         
         try {
             // Remove confirmPassword before sending
-            const { confirmPassword, ...registrationData } = formData;
+            const { confirmPassword, ...formFields } = formData;
+            
+            // Combine address fields into a single address string (what backend expects)
+            const fullAddress = [
+                formData.street,
+                formData.barangay,
+                formData.city,
+                formData.province,
+                formData.zip_code
+            ].filter(part => part && part.trim()).join(', ');
+            
+            // Format data to match what backend expects
+            const registrationData = {
+                name: formFields.name,
+                email: formFields.email,
+                password: formFields.password,
+                phone: formFields.phone || null,
+                address: fullAddress || null
+            };
             
             // 🔥 THIS IS THE MISSING API CALL - ADDED NOW
-            const response = await api.post('/register', registrationData);
+            const response = await api.post('/api/auth/register', registrationData);
             
             toast.success('Registration submitted! Please wait for admin approval.');
             
