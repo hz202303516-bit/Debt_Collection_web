@@ -42,7 +42,7 @@ app.use('/api/loans', loanRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/gps', gpsRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/admin', adminRoutes); - doesn't need database
+app.use('/api/admin', adminRoutes);
 app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
