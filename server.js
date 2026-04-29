@@ -19,42 +19,23 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Simple health check - doesn't need database
+// Simple health check
 app.get('/api/ping', (req, res) => {
-    res.json({ status: 'ok', message: 'Server is running' });
+  res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Health check with database
+// Health check with DB
 app.get('/api/health', async (req, res) => {
-    try {
-        await pool.query('SELECT 1');
-        res.json({ status: 'ok', database: 'connected' });
-    } catch (error) {
-        res.status(200).json({ status: 'starting', database: 'connecting', error: error.message });
-    }
-});
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/borrowers', borrowerRoutes);
-app.use('/api/loans', loanRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/gps', gpsRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/admin', adminRoutes); - doesn't need database
-app.get('/api/ping', (req, res) => {
-    res.json({ status: 'ok', message: 'Server is running' });
-});
-
-// Health check endpoint - requires database
-app.get('/api/health', async (req, res) => {
-    try {
-        await pool.query('SELECT 1');
-        res.json({ status: 'ok', database: 'connected' });
-    } catch (error) {
-        res.status(500).json({ status: 'error', database: 'disconnected', error: error.message });
-    }
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message
+    });
+  }
 });
 
 // API Routes
@@ -67,14 +48,14 @@ app.use('/api/gps', gpsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Serve static files from React build
+// Serve React build
 app.use(express.static(path.join(__dirname, 'frontend', 'build')));
 
-// Handle React routing - all non-API routes go to React
+// React routing fallback
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'build', 'index.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
