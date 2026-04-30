@@ -26,7 +26,6 @@ app.get('/api/ping', (req, res) => {
 
 // Health check with DB
 app.get('/api/health', async (req, res) => {
-<<<<<<< HEAD
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected' });
@@ -37,7 +36,6 @@ app.get('/api/health', async (req, res) => {
       error: error.message
     });
   }
-=======
     try {
         await pool.query('SELECT 1');
         res.json({ status: 'ok', database: 'connected' });
