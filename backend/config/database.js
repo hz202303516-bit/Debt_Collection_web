@@ -1,37 +1,44 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
-// Check if we have a DATABASE_URL (Render) or individual parameters (local)
-const pool = new Pool(
-    process.env.DATABASE_URL 
-        ? {
-            // Render/Production configuration
-            connectionString: process.env.DATABASE_URL,
-            ssl: {
-                rejectUnauthorized: false // Required for Render PostgreSQL
-            }
-        }
-        : {
-            // Local development configuration
-            user: process.env.DB_USER || 'postgres',
-            host: process.env.DB_HOST || 'localhost',
-            database: process.env.DB_NAME || 'debt_collection',
-            password: process.env.DB_PASSWORD || '12345',
-            port: process.env.DB_PORT || 5432,
-        }
-);
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
-// Test connection on startup
-pool.query('SELECT NOW()')
-    .then(result => {
-        console.log('✅ Database connected successfully at:', result.rows[0].now);
+// Auto-initialize database tables
+async function initializeDatabase() {
+    try {
+        const schemaPath = path.join(__dirname, 'schema.sql');
+        if (fs.existsSync(schemaPath)) {
+            const schema = fs.readFileSync(schemaPath, 'utf8');
+            await pool.query(schema);
+            console.log('✅ Database tables initialized successfully');
+        } else {
+            console.log('Schema file not found at:', schemaPath);
+        }
+    } catch (error) {
+        if (error.message.includes('already exists')) {
+            console.log('Tables already exist, continuing...');
+        } else {
+            console.error('Database initialization error:', error.message);
+        }
+    }
+}
+
+// Test connection first
+pool.connect()
+    .then(async (client) => {
+        console.log('✅ Database connected successfully');
+        client.release();
+        // Initialize tables after successful connection
+        await initializeDatabase();
     })
     .catch(err => {
-        console.error('❌ Database connection failed:', err.message);
-        console.error('Connection details:', {
-            usingDatabseUrl: !!process.env.DATABASE_URL,
-            host: process.env.DATABASE_URL ? 'Render' : (process.env.DB_HOST || 'localhost')
-        });
+        console.error('❌ Database connection error:', err.message);
     });
 
 module.exports = pool;
