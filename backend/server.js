@@ -12,14 +12,15 @@ const paymentRoutes = require('./routes/payments');
 const gpsRoutes = require('./routes/gps');
 const reportsRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
+const dashboardRoutes = require('./routes/dashboard');
+const mlRoutes = require('./routes/ml');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api/auth', authRoutes);
-
 
 // Health check endpoints
 app.get('/api/ping', (req, res) => {
@@ -27,7 +28,13 @@ app.get('/api/ping', (req, res) => {
 });
 
 app.get('/api/health', async (req, res) => {
-    res.json({ status: 'ok', message: 'Backend server is running' });
+    try {
+        const pool = require('./config/database');
+        await pool.query('SELECT 1');
+        res.json({ status: 'ok', database: 'connected' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', database: 'disconnected' });
+    }
 });
 
 // API Routes
@@ -39,13 +46,18 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/gps', gpsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ml', mlRoutes);
 
-// Serve frontend build
-app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
-});
+// Serve React build in production
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '..', 'frontend', 'build')));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '..', 'frontend', 'build', 'index.html'));
+    });
+}
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
