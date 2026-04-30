@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const authRoutes = require('./auth');
+const authRoutes = require('./backend/routes/auth');
 const userRoutes = require('./users');
 const borrowerRoutes = require('./borrowers');
 const loanRoutes = require('./loans');
@@ -17,6 +17,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
+app.use('/api/auth', authRoutes);
 app.use(express.json());
 
 // Simple health check
