@@ -36,24 +36,34 @@ const Dashboard = ({ userRole }) => {
     }, [userRole]);
 
     const fetchDashboardData = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
+    try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { Authorization: `Bearer ${token}` } };
 
-            const [loansRes, paymentsRes] = await Promise.all([
-                axios.get('http://localhost:5000/api/loans', config),
-                axios.get('http://localhost:5000/api/payments', config)
-            ]);
+        // 🔥 FIX: Use relative URLs or API base URL
+        const API_BASE = process.env.REACT_APP_API_URL || '';
+        
+        const [loansRes, paymentsRes] = await Promise.all([
+            axios.get(`${API_BASE}/api/loans`, config),
+            axios.get(`${API_BASE}/api/payments`, config)
+        ]);
 
-            setStats({
-                totalLoans: loansRes.data.length,
-                totalPayments: paymentsRes.data.length,
-                recentPayments: paymentsRes.data.slice(0, 5)
-            });
-        } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-        }
-    };
+        setStats({
+            totalLoans: loansRes.data.length || loansRes.data.total || 0,
+            totalPayments: paymentsRes.data.length || paymentsRes.data.total || 0,
+            recentPayments: (paymentsRes.data.slice ? paymentsRes.data.slice(0, 5) : paymentsRes.data.rows?.slice(0, 5)) || []
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Don't crash - show empty stats
+        setStats({
+            totalLoans: 0,
+            totalPayments: 0,
+            totalBorrowers: 0,
+            recentPayments: []
+        });
+    }
+};
 
     const handleLogout = () => {
         localStorage.clear();
