@@ -1,136 +1,113 @@
 const express = require('express');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
-
 const router = express.Router();
+const pool = require('../config/database');
+const jwt = require('jsonwebtoken');
 
-// Record payment (Collector)
-router.post('/', authenticateToken, authorizeRoles('collector'), async (req, res) => {
-    const client = await pool.connect();
-    
+const authenticateToken = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Access denied' });
+
     try {
-        await client.query('BEGIN');
-        
-        const { loan_id, amount, latitude, longitude } = req.body;
-        
-        // Validate loan exists and get balance
-        const loanResult = await client.query(
-            'SELECT * FROM loans WHERE loan_id = $1',
-            [loan_id]
-        );
-        
-        if (loanResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: 'Loan not found' });
-        }
-        
-        const loan = loanResult.rows[0];
-        
-        if (amount > loan.balance) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: 'Payment amount exceeds loan balance' });
-        }
-        
-        // Generate receipt number
-        const receipt_number = `RCT-${Date.now()}-${uuidv4().slice(0, 8)}`;
-        
-        // Insert payment
-        const paymentResult = await client.query(
-            `INSERT INTO payments (loan_id, collector_id, amount, gps_latitude, gps_longitude, receipt_number) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [loan_id, req.user.user_id, amount, latitude, longitude, receipt_number]
-        );
-        
-        // Update loan balance
-        const newBalance = loan.balance - amount;
-        await client.query(
-            'UPDATE loans SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE loan_id = $2',
-            [newBalance, loan_id]
-        );
-        
-        // Update loan status if paid in full
-        if (newBalance <= 0) {
-            await client.query(
-                "UPDATE loans SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE loan_id = $1",
-                [loan_id]
-            );
-        }
-        
-        // Save GPS location only if valid coordinates provided
-        if (latitude != null && longitude != null && 
-            typeof latitude === 'number' && typeof longitude === 'number') {
-            const borrowerResult = await client.query(
-                'SELECT borrower_id FROM loans WHERE loan_id = $1',
-                [loan_id]
-            );
-            
-            if (borrowerResult.rows.length > 0) {
-                await client.query(
-                    `INSERT INTO gps_logs (collector_id, borrower_id, latitude, longitude) 
-                     VALUES ($1, $2, $3, $4)`,
-                    [req.user.user_id, borrowerResult.rows[0].borrower_id, latitude, longitude]
-                );
-            }
-        }
-        
-        await client.query('COMMIT');
-        
-        res.status(201).json({
-            ...paymentResult.rows[0],
-            receipt_number,
-            new_balance: newBalance
-        });
-        
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+        req.user = decoded;
+        next();
     } catch (error) {
-        await client.query('ROLLBACK');
-        console.error(error);
-        res.status(500).json({ error: 'Server error' });
-    } finally {
-        client.release();
+        res.status(401).json({ error: 'Invalid token' });
     }
-});
+};
 
-// Get payment history
+// Get all payments
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        let query;
-        let params = [];
-        
-        if (req.user.role === 'admin') {
-            query = `
-                SELECT p.*, u.name as collector_name, l.loan_amount, l.balance as remaining_balance
-                FROM payments p
-                JOIN users u ON p.collector_id = u.user_id
-                JOIN loans l ON p.loan_id = l.loan_id
-                ORDER BY p.payment_date DESC
-            `;
+        let query = `
+            SELECT p.*, l.loan_amount, b.full_name as borrower_name, u.name as collector_name
+            FROM payments p
+            JOIN loans l ON p.loan_id = l.loan_id
+            JOIN borrowers b ON l.borrower_id = b.borrower_id
+            LEFT JOIN users u ON p.collector_id = u.user_id
+        `;
+        const params = [];
+
+        if (req.user.role === 'borrower') {
+            query += ' WHERE b.user_id = $1';
+            params.push(req.user.userId);
         } else if (req.user.role === 'collector') {
-            query = `
-                SELECT p.*, l.loan_amount, l.balance as remaining_balance
-                FROM payments p
-                JOIN loans l ON p.loan_id = l.loan_id
-                WHERE p.collector_id = $1
-                ORDER BY p.payment_date DESC
-            `;
-            params = [req.user.user_id];
-        } else if (req.user.role === 'borrower') {
-            query = `
-                SELECT p.*, l.loan_amount, l.balance as remaining_balance
-                FROM payments p
-                JOIN loans l ON p.loan_id = l.loan_id
-                JOIN borrowers b ON l.borrower_id = b.borrower_id
-                WHERE b.user_id = $1
-                ORDER BY p.payment_date DESC
-            `;
-            params = [req.user.user_id];
+            query += ' WHERE p.collector_id = $1';
+            params.push(req.user.userId);
         }
-        
+
+        query += ' ORDER BY p.payment_date DESC';
+
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error fetching payments:', error.message);
+        res.status(500).json({ error: 'Failed to fetch payments' });
+    }
+});
+
+// Record payment
+router.post('/', authenticateToken, async (req, res) => {
+    try {
+        const { loan_id, amount, gps_latitude, gps_longitude } = req.body;
+
+        if (!loan_id || !amount) {
+            return res.status(400).json({ error: 'Loan ID and amount are required' });
+        }
+
+        // Verify loan exists and get borrower
+        const loanResult = await pool.query(
+            `SELECT l.*, b.borrower_id FROM loans l 
+             JOIN borrowers b ON l.borrower_id = b.borrower_id 
+             WHERE l.loan_id = $1`,
+            [loan_id]
+        );
+
+        if (loanResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Loan not found' });
+        }
+
+        const loan = loanResult.rows[0];
+
+        // Generate receipt number
+        const receiptNumber = 'RCP-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+        // Record payment
+        const result = await pool.query(
+            `INSERT INTO payments (loan_id, collector_id, amount, gps_latitude, gps_longitude, receipt_number)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [loan_id, req.user.userId, amount, gps_latitude || null, gps_longitude || null, receiptNumber]
+        );
+
+        // Update loan balance
+        const newBalance = parseFloat(loan.balance) - parseFloat(amount);
+        const newStatus = newBalance <= 0 ? 'paid' : 'active';
+
+        await pool.query(
+            `UPDATE loans SET balance = $1, status = $2, updated_at = CURRENT_TIMESTAMP 
+             WHERE loan_id = $3`,
+            [newBalance, newStatus, loan_id]
+        );
+
+        // Log GPS if provided
+        if (gps_latitude && gps_longitude) {
+            await pool.query(
+                `INSERT INTO gps_logs (collector_id, borrower_id, latitude, longitude)
+                 VALUES ($1, $2, $3, $4)`,
+                [req.user.userId, loan.borrower_id, gps_latitude, gps_longitude]
+            );
+        }
+
+        res.status(201).json({
+            message: 'Payment recorded successfully',
+            payment: result.rows[0],
+            newBalance,
+            receiptNumber
+        });
+    } catch (error) {
+        console.error('Error recording payment:', error.message);
+        res.status(500).json({ error: 'Failed to record payment' });
     }
 });
 
