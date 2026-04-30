@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Use relative path in production, localhost in development
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 const api = axios.create({
@@ -10,7 +9,7 @@ const api = axios.create({
     }
 });
 
-// Add token to requests if available
+// Add token to requests
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -22,7 +21,7 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Handle response errors
+// Handle 401 responses
 api.interceptors.response.use(
     (response) => response,
     (error) => {
