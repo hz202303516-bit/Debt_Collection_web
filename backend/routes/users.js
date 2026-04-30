@@ -5,9 +5,10 @@ const express = require('express');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const pool = require('../config/database');
 
+const express = require('express');
 const router = express.Router();
+const { authenticateToken, authorizeRoles } = require('../middleware/auth'); // ✅ Gi-import
 
-// Get users by role
 router.get('/', authenticateToken, authorizeRoles('admin'), async (req, res) => {
     try {
         const { role } = req.query;
