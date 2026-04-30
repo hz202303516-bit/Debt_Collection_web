@@ -1,38 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
-const jwt = require('jsonwebtoken');
-
-const authenticateToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Access denied' });
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
-        req.user = decoded;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: 'Invalid token' });
-    }
-};
+const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 // Get all payments
 router.get('/', authenticateToken, async (req, res) => {
     try {
         let query = `
-            SELECT p.*, l.loan_amount, b.full_name as borrower_name, u.name as collector_name
+            SELECT p.*, 
+                   l.loan_amount,
+                   l.balance as loan_balance,
+                   b.full_name as borrower_name,
+                   u.name as collector_name
             FROM payments p
             JOIN loans l ON p.loan_id = l.loan_id
             JOIN borrowers b ON l.borrower_id = b.borrower_id
             LEFT JOIN users u ON p.collector_id = u.user_id
+            WHERE 1=1
         `;
         const params = [];
 
         if (req.user.role === 'borrower') {
-            query += ' WHERE b.user_id = $1';
+            query += ' AND b.user_id = $' + (params.length + 1);
             params.push(req.user.userId);
         } else if (req.user.role === 'collector') {
-            query += ' WHERE p.collector_id = $1';
+            query += ' AND p.collector_id = $' + (params.length + 1);
             params.push(req.user.userId);
         }
 
@@ -55,9 +47,10 @@ router.post('/', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Loan ID and amount are required' });
         }
 
-        // Verify loan exists and get borrower
+        // Verify loan exists and is active
         const loanResult = await pool.query(
-            `SELECT l.*, b.borrower_id FROM loans l 
+            `SELECT l.*, b.borrower_id, b.full_name 
+             FROM loans l 
              JOIN borrowers b ON l.borrower_id = b.borrower_id 
              WHERE l.loan_id = $1`,
             [loan_id]
@@ -68,6 +61,17 @@ router.post('/', authenticateToken, async (req, res) => {
         }
 
         const loan = loanResult.rows[0];
+
+        if (loan.status === 'paid') {
+            return res.status(400).json({ error: 'Loan already fully paid' });
+        }
+
+        // Check if payment amount exceeds balance
+        if (parseFloat(amount) > parseFloat(loan.balance)) {
+            return res.status(400).json({ 
+                error: `Payment amount exceeds remaining balance of ₱${parseFloat(loan.balance).toFixed(2)}` 
+            });
+        }
 
         // Generate receipt number
         const receiptNumber = 'RCP-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -87,7 +91,7 @@ router.post('/', authenticateToken, async (req, res) => {
         await pool.query(
             `UPDATE loans SET balance = $1, status = $2, updated_at = CURRENT_TIMESTAMP 
              WHERE loan_id = $3`,
-            [newBalance, newStatus, loan_id]
+            [newBalance.toFixed(2), newStatus, loan_id]
         );
 
         // Log GPS if provided
@@ -102,12 +106,30 @@ router.post('/', authenticateToken, async (req, res) => {
         res.status(201).json({
             message: 'Payment recorded successfully',
             payment: result.rows[0],
-            newBalance,
+            newBalance: newBalance.toFixed(2),
             receiptNumber
         });
     } catch (error) {
         console.error('Error recording payment:', error.message);
         res.status(500).json({ error: 'Failed to record payment' });
+    }
+});
+
+// Get payments by loan ID
+router.get('/loan/:loanId', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT p.*, u.name as collector_name
+             FROM payments p
+             LEFT JOIN users u ON p.collector_id = u.user_id
+             WHERE p.loan_id = $1
+             ORDER BY p.payment_date DESC`,
+            [req.params.loanId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching loan payments:', error.message);
+        res.status(500).json({ error: 'Failed to fetch loan payments' });
     }
 });
 
