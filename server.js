@@ -26,6 +26,7 @@ app.get('/api/ping', (req, res) => {
 
 // Health check with DB
 app.get('/api/health', async (req, res) => {
+<<<<<<< HEAD
   try {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected' });
@@ -36,6 +37,37 @@ app.get('/api/health', async (req, res) => {
       error: error.message
     });
   }
+=======
+    try {
+        await pool.query('SELECT 1');
+        res.json({ status: 'ok', database: 'connected' });
+    } catch (error) {
+        res.status(200).json({ status: 'starting', database: 'connecting', error: error.message });
+    }
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/borrowers', borrowerRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/gps', gpsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/admin', adminRoutes);
+app.get('/api/ping', (req, res) => {
+    res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Health check endpoint - requires database
+app.get('/api/health', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({ status: 'ok', database: 'connected' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', database: 'disconnected', error: error.message });
+    }
+>>>>>>> 04e20f8127cd73d7abb9515258bef13ea0646989
 });
 
 // API Routes
@@ -57,5 +89,10 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
+<<<<<<< HEAD
   console.log(`Server running on port ${PORT}`);
 });
+=======
+    console.log(`Server running on port ${PORT}`);
+});
+>>>>>>> 04e20f8127cd73d7abb9515258bef13ea0646989
