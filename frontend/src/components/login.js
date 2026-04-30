@@ -23,24 +23,15 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
+       const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         
         try {
-            // 🔥 UPDATED: Use relative URL since both frontend and backend are on Render
-         const response = await axios.post(
-          `${process.env.REACT_APP_API_URL}/auth/login`,
-          formData
-        );
-
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Login failed');
-            }
+            // Axios returns data directly, no need for .json() or .ok
+            const response = await axios.post('/api/auth/login', formData);
+            const data = response.data;  // Data is in response.data for axios
             
             // Store token and user data
             localStorage.setItem('token', data.token);
@@ -70,22 +61,23 @@ const Login = ({ setIsAuthenticated, setUserRole }) => {
             }
             
         } catch (error) {
-            const errorMessage = error.message || 'Login failed. Please try again.';
+            // Axios errors are in error.response
+            const errorMessage = error.response?.data?.error || error.message || 'Login failed. Please try again.';
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
     };
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-        if (error) setError('');
-    };
+    
+        const handleChange = (e) => {
+            const { name, value } = e.target;
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+            if (error) setError('');
+        };
 
     return (
         <Container component="main" maxWidth="xs">
