@@ -65,7 +65,6 @@ app.get('/api/health', async (req, res) => {
     } catch (error) {
         res.status(500).json({ status: 'error', database: 'disconnected', error: error.message });
     }
->>>>>>> 04e20f8127cd73d7abb9515258bef13ea0646989
 });
 
 // API Routes
