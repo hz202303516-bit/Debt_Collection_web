@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const pool = require('../database'); // Make sure this path is correct
+const pool = require('../config/database'); // Make sure this path is correct
 
 // Login route
 router.post('/login', async (req, res) => {
