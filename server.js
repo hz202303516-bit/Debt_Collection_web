@@ -89,10 +89,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-<<<<<<< HEAD
   console.log(`Server running on port ${PORT}`);
 });
-=======
-    console.log(`Server running on port ${PORT}`);
-});
->>>>>>> 04e20f8127cd73d7abb9515258bef13ea0646989
